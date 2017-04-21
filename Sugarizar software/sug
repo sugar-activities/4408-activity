@@ -1,0 +1,117 @@
+#!/bin/sh
+
+CREATEPATH=/home/olpc/Activities/
+ACTIVITYFILE=activity/activity/activity.info
+
+echo "Enter [enter] at any prompt to exit without creating the task."
+
+ACTIVITYNAME=" "
+NOSUCHACTVITY=1
+# until [ -z "$ACTIVITYNAME" -o \($NOSUCHACTVITY -eq 0\) ]
+until [ $NOSUCHACTVITY -eq 0 ]
+do
+   echo "Ponga un nombre para la actividad. Use solo numeros y letras:"
+   echo -n "> "
+   read ACTIVITYNAME
+
+   NOSUCHACTVITY=0
+   if [ -d "$CREATEPATH"/"$ACTIVITYNAME".activity -o -s /bin/sugar"$ACTIVITYNAME" ]
+   then
+      NOSUCHACTVITY=1
+      echo "Una actividad ya tiene ese nombre. Ponga otro nombre."
+   fi
+
+done
+if [ -z "$ACTIVITYNAME" ]
+then
+	echo "No task created."
+	exit 0
+fi
+
+ICONFILENAME=" "
+until [ -z "$ICONFILENAME" -o -s "$ICONFILENAME" ]
+do
+   echo "Ponga el nombre completo del icono de la actividad, incluida la ubicacion:"
+   echo -n "> "
+   read ICONFILENAME
+done
+if [ -z "$ICONFILENAME" ]
+then
+	echo "No task created."
+	exit 0
+fi
+
+EXECUTABLECOMMAND=" "
+   echo "Ponga el comando a usar para iniciar el programa."
+   echo "Por ejemplo, \"firefox\" o \"mplayer -f\""
+   echo -n "> "
+   read EXECUTABLECOMMAND
+if [ -z "$EXECUTABLECOMMAND" ]
+then
+	echo "No task created."
+	exit 0
+fi
+
+ORGPATH=" "
+   echo "Ponga la dirreccion de la organizacion del programa."
+   echo "Por ejemplo, la organizacion de firefox es org.mozilla"
+   echo "Si no sabes cual es, pon \"org.x\""
+   echo -n "> "
+   read ORGPATH
+if [ -z "$ORGPATH" ]
+then
+	echo "No task created."
+	exit 0
+fi
+
+echo "Activity name: $ACTIVITYNAME"
+echo "Icon filename: $ICONFILENAME"
+echo "Executable command: $EXECUTABLECOMMAND"
+echo "Org path: $ORGPATH"
+
+# create directories
+mkdir "$CREATEPATH"/"$ACTIVITYNAME".activity
+mkdir "$CREATEPATH"/"$ACTIVITYNAME".activity/activity
+mkdir "$CREATEPATH"/"$ACTIVITYNAME".activity/lib
+mkdir "$CREATEPATH"/"$ACTIVITYNAME".activity/bin
+
+# copy existing file names
+cp libsugarize.so "$CREATEPATH"/"$ACTIVITYNAME".activity/lib
+cp $ICONFILENAME "$CREATEPATH"/"$ACTIVITYNAME".activity/activity/"$ACTIVITYNAME".svg
+
+# make sure libsugarize.so file is executable
+chmod +x "$CREATEPATH"/"$ACTIVITYNAME".activity/lib/libsugarize.so
+
+# create activity.info file
+echo "[Activity]" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+echo "name = ${ACTIVITYNAME}" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+echo "service_name = ${ORGPATH}.${ACTIVITYNAME}" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+echo "icon = ${ACTIVITYNAME}" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+echo "activity_version = 1" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+echo "show_launcher = yes" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+echo "exec = sugar${ACTIVITYNAME}" >> "$CREATEPATH"/"$ACTIVITYNAME"."$ACTIVITYFILE"
+
+# create /bin/sugarACTIVITYNAME file
+
+BINFILE="$CREATEPATH""$ACTIVITYNAME".activity/bin/sugar"$ACTIVITYNAME"
+
+echo "#!/bin/sh" > "$BINFILE"
+echo "while [ -n \"\$2\" ] ; do" >> "$BINFILE"
+echo "     case \"\$1\" in" >> "$BINFILE"
+echo "         -b | --bundle-id)     export SUGAR_BUNDLE_ID=\"\$2\" ;;" >> "$BINFILE"
+echo "         -a | --activity-id)   export SUGAR_ACTIVITY_ID=\"\$2\" ;;" >> "$BINFILE"
+echo "         -o | --object-id)     export SUGAR_OBJECT_ID=\"\$2\" ;;" >> "$BINFILE"
+echo "         -u | --uri)           export SUGAR_URI=\"\$2\" ;;" >> "$BINFILE"
+echo "         *) echo unknown argument \$1 \$2 ;;" >> "$BINFILE"
+echo "     esac" >> "$BINFILE"
+echo "     shift;shift" >> "$BINFILE"
+echo "done" >> "$BINFILE"
+echo "export LD_PRELOAD=\"\$SUGAR_BUNDLE_PATH/lib/libsugarize.so\"" >> "$BINFILE"
+echo "export NET_WM_NAME=\"${ACTIVITYNAME}\"" >> "$BINFILE"
+echo "exec ${EXECUTABLECOMMAND}" >> "$BINFILE"
+
+# make sugar file executable
+chmod +x "$BINFILE"
+
+echo "${ACTIVITYNAME} task created sucessfully. Reinicie sugar (ctrl-alt-borrar) para usar."
+exit 0
